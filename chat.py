@@ -182,34 +182,6 @@ async def ensure_realtime_connected():
             await openai_realtime.wait_for_session_created()
     return openai_realtime
 
-# @cl.on_message # 사용자의 텍스트를 입력받음
-# async def on_message(message: cl.Message):
-#     try:
-#         openai_realtime: RealtimeClient = cl.user_session.get("openai_realtime")
-        
-#         if not openai_realtime:
-#             logger.error("OpenAI realtime client not found in session")
-#             await cl.ErrorMessage(content="OpenAI realtime client not initialized").send()
-#             return
-            
-#         if not openai_realtime.is_connected():
-#             logger.error("OpenAI realtime client not connected")
-#             await cl.ErrorMessage(content="OpenAI realtime client not connected").send()
-#             return
-            
-#         # Set flag to indicate this is text input, not audio
-#         cl.user_session.set("is_text_input", True)
-        
-#         # Configure for text-only response (no audio output for text input)
-#         await openai_realtime.update_session(modalities=["text"])
-        
-#         await openai_realtime.send_user_message_content([{ "type": 'input_text', "text": message.content}]) # 사용자의 메시지를 RealtimeClient로 전송
-        
-#     except Exception as e:
-#         logger.error(f"Error in on_message: {str(e)}")
-#         logger.error(f"Traceback: {traceback.format_exc()}")
-#         await cl.ErrorMessage(content=f"Error processing message: {str(e)}").send()
-
 @cl.on_audio_start # 음성 입력
 async def on_audio_start():
     logger.info("Audio recording started")
@@ -256,8 +228,6 @@ async def on_end():
         logger.error(f"Traceback: {traceback.format_exc()}")
 
 
-
-##############################################################################################################################################
 def build_prefs_text(settings: dict) -> str:
     if not settings:
         return ""
