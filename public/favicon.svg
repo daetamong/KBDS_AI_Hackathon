@@ -1,0 +1,32 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF5A5F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D70466;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="url(#faviconGradient)"/>
+  
+  <!-- House icon -->
+  <path d="M16 6 L26 14 L26 26 L22 26 L22 20 L10 20 L10 26 L6 26 L6 14 Z" 
+        fill="white" opacity="0.9"/>
+  
+  <!-- Chat indicator -->
+  <circle cx="22" cy="10" r="4" fill="#00D4AA"/>
+  <path d="M20 10 L21 11 L24 8" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  
+  <!-- Realtime dots -->
+  <g transform="translate(8, 22)">
+    <circle cx="2" cy="0" r="1" fill="white" opacity="0.8">
+      <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="6" cy="0" r="1" fill="white" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;0.9;0.6" dur="1s" repeatCount="indefinite" begin="0.3s"/>
+    </circle>
+    <circle cx="10" cy="0" r="1" fill="white" opacity="0.8">
+      <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1s" repeatCount="indefinite" begin="0.6s"/>
+    </circle>
+  </g>
+</svg>

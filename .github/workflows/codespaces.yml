@@ -1,0 +1,41 @@
+name: Codespaces Configuration Check
+
+on:
+  push:
+    paths:
+      - '.devcontainer/**'
+  pull_request:
+    paths:
+      - '.devcontainer/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate devcontainer.json
+        run: |
+          if [ -f .devcontainer/devcontainer.json ]; then
+            echo "✅ devcontainer.json exists"
+            # Basic JSON validation
+            cat .devcontainer/devcontainer.json | python3 -m json.tool > /dev/null
+            echo "✅ devcontainer.json is valid JSON"
+          else
+            echo "❌ devcontainer.json not found"
+            exit 1
+          fi
+      
+      - name: Check setup script
+        run: |
+          if [ -f .devcontainer/setup.sh ]; then
+            echo "✅ setup.sh exists"
+            if [ -x .devcontainer/setup.sh ]; then
+              echo "✅ setup.sh is executable"
+            else
+              echo "⚠️  setup.sh is not executable (will be fixed in container)"
+            fi
+          else
+            echo "❌ setup.sh not found"
+            exit 1
+          fi

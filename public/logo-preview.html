@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Realtime Airbnb Assistant - Logo Preview</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+        h1 {
+            color: #2C3E50;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .logo-section {
+            text-align: center;
+            margin: 40px 0;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        }
+        .logo-section h3 {
+            color: #495057;
+            margin-bottom: 20px;
+        }
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin: 30px 0;
+        }
+        .favicon-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .dark-bg {
+            background: #343a40;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .light-bg {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .size-demo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 MCP Realtime Airbnb Assistant</h1>
+        
+        <div class="logo-section">
+            <h3>메인 로고 (Logo)</h3>
+            <img src="logo.svg" alt="MCP Realtime Logo" style="max-width: 100%; height: auto;">
+            
+            <div class="preview-grid">
+                <div class="light-bg">
+                    <h4>밝은 배경</h4>
+                    <img src="logo.svg" alt="Logo on light background" style="width: 200px;">
+                </div>
+                <div class="dark-bg">
+                    <h4 style="color: white;">어두운 배경</h4>
+                    <img src="logo.svg" alt="Logo on dark background" style="width: 200px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="logo-section">
+            <h3>파비콘 (Favicon)</h3>
+            
+            <div class="size-demo">
+                <span>32x32:</span>
+                <img src="favicon.svg" alt="Favicon 32px" style="width: 32px; height: 32px;">
+            </div>
+            
+            <div class="size-demo">
+                <span>16x16:</span>
+                <img src="favicon.svg" alt="Favicon 16px" style="width: 16px; height: 16px;">
+            </div>
+
+            <div class="favicon-preview">
+                <img src="favicon.svg" alt="Favicon" style="width: 16px; height: 16px;">
+                <span>MCP Realtime Airbnb Assistant - 브라우저 탭 미리보기</span>
+            </div>
+        </div>
+
+        <div class="logo-section">
+            <h3>로고 설명</h3>
+            <ul style="text-align: left; color: #495057;">
+                <li><strong>집 아이콘</strong>: Airbnb의 숙박 서비스를 상징</li>
+                <li><strong>채팅 버블</strong>: AI 챗봇 기능을 나타냄</li>
+                <li><strong>실시간 웨이브</strong>: 음성 대화 및 실시간 처리 기능</li>
+                <li><strong>MCP 인디케이터</strong>: Model Context Protocol 연결 상태</li>
+                <li><strong>그라디언트 컬러</strong>: Airbnb 브랜드 컬러 (#FF5A5F ~ #D70466)</li>
+                <li><strong>애니메이션</strong>: 실시간 상호작용을 강조</li>
+            </ul>
+        </div>
+
+        <div class="logo-section">
+            <h3>사용법</h3>
+            <p style="text-align: left; color: #495057;">
+                • <code>logo.svg</code>: 웹사이트 헤더, 소개 페이지, 문서에 사용<br>
+                • <code>favicon.svg</code>: 브라우저 탭 아이콘으로 사용<br>
+                • SVG 형식으로 제작되어 어떤 크기에서도 선명하게 표시<br>
+                • CSS로 색상 및 애니메이션 커스터마이징 가능
+            </p>
+        </div>
+    </div>
+</body>
+</html>

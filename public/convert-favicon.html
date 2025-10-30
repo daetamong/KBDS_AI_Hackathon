@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SVG to PNG Converter</title>
+</head>
+<body>
+    <canvas id="canvas" width="32" height="32" style="display: none;"></canvas>
+    <script>
+        // SVG 데이터를 PNG로 변환하는 스크립트
+        const svgData = `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="faviconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#FF5A5F;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#D70466;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="6" fill="url(#faviconGradient)"/>
+            <path d="M16 6 L26 14 L26 26 L22 26 L22 20 L10 20 L10 26 L6 26 L6 14 Z" fill="white" opacity="0.9"/>
+            <circle cx="22" cy="10" r="4" fill="#00D4AA"/>
+            <path d="M20 10 L21 11 L24 8" stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+            <circle cx="10" cy="22" r="1" fill="white" opacity="0.8"/>
+            <circle cx="14" cy="22" r="1" fill="white" opacity="0.6"/>
+            <circle cx="18" cy="22" r="1" fill="white" opacity="0.8"/>
+        </svg>`;
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0);
+            
+            // PNG 데이터 URL 생성
+            const pngDataUrl = canvas.toDataURL('image/png');
+            
+            // 다운로드 링크 생성
+            const link = document.createElement('a');
+            link.download = 'favicon.png';
+            link.href = pngDataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        
+        // SVG를 Data URL로 변환
+        const svgBlob = new Blob([svgData], {type: 'image/svg+xml'});
+        const url = URL.createObjectURL(svgBlob);
+        img.src = url;
+    </script>
+</body>
+</html>
