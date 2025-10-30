@@ -1,6 +1,7 @@
 import chainlit as cl
 from uuid import uuid4
 from chainlit.logger import logger
+from chainlit.input_widget import TextInput, Switch
 import traceback
 
 from realtime import RealtimeClient
@@ -9,21 +10,22 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 async def setup_openai_realtime():
-    """Instantiate and configure the OpenAI Realtime Client"""
-    
-
     system_prompt = """
         당신은 도움이 되는 AI 어시스턴트입니다. 
         사용자의 질문에 정확하고 유용한 답변을 제공하세요.
         한국어로 답변해주세요. 오디오를 사용해서 말할 수 있으므로 대화형에 맞게 응답하세요. Bullet이나 1. 2, 등의 형식을 피해주세요. 
     """
-    
-    max_tokens = 4096  
+    max_tokens = 4096
              
     openai_realtime = RealtimeClient(system_prompt=system_prompt, max_tokens=max_tokens)
     cl.user_session.set("track_id", str(uuid4())) # 오디오 재생 트랙 ID 설정
     # Initialize the flag to track input type (text vs audio)
     cl.user_session.set("is_text_input", True) # 입력값이 텍스트인지 오디오인지 추적하는 플래그 초기화
+
+    def get_ui_settings():  # ← 동기 함수
+        return cl.user_session.get("ui_settings") or {}
+    openai_realtime._ui_settings_injector = get_ui_settings
+
     async def handle_conversation_updated(event):
         item = event.get("item")
         delta = event.get("delta")
@@ -154,7 +156,11 @@ async def setup_openai_realtime():
         logger.error(f"Realtime connection error: {event}")
         # Send error message to user
         await cl.ErrorMessage(content=f"Realtime connection error: {event}").send()
-    
+        
+    async def get_ui_settings():
+        return cl.user_session.get("ui_settings") or {}
+
+    openai_realtime._ui_settings_injector = get_ui_settings
     
     openai_realtime.on('conversation.updated', handle_conversation_updated)
     openai_realtime.on('conversation.item.completed', handle_item_completed)
@@ -164,56 +170,45 @@ async def setup_openai_realtime():
 
     cl.user_session.set("openai_realtime", openai_realtime)
     
-
-@cl.on_chat_start # 앱 시작 : setup_openai_realtime 호출 및 연결 (Realtime 세션을 초기화하고 WebSocket연결)
-async def start():
-    logger.info("Chat session started")
-    try:
+async def ensure_realtime_connected():
+    openai_realtime: RealtimeClient = cl.user_session.get("openai_realtime")
+    if not openai_realtime:
         await setup_openai_realtime()
-        
-        openai_realtime: RealtimeClient = cl.user_session.get("openai_realtime") # 성공하면 세션에 클라이언트를 저장
-        if not openai_realtime:
-            logger.error("Failed to get openai_realtime from session")
-            await cl.ErrorMessage(content="Failed to initialize OpenAI realtime client").send()
-            return False
-            
+        openai_realtime = cl.user_session.get("openai_realtime")
+    if not openai_realtime.is_connected():
         await openai_realtime.connect()
-        logger.info("Connected to OpenAI realtime")
-        return True
-    except Exception as e:
-        logger.error(f"Error in start function: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        await cl.ErrorMessage(content=f"Failed to connect to OpenAI realtime: {e}").send()
-        return False
+        # 세션 생성 이벤트를 기다리도록 구현되어 있다면 호출
+        if hasattr(openai_realtime, "wait_for_session_created"):
+            await openai_realtime.wait_for_session_created()
+    return openai_realtime
 
-
-@cl.on_message # 사용자의 텍스트를 입력받음
-async def on_message(message: cl.Message):
-    try:
-        openai_realtime: RealtimeClient = cl.user_session.get("openai_realtime")
+# @cl.on_message # 사용자의 텍스트를 입력받음
+# async def on_message(message: cl.Message):
+#     try:
+#         openai_realtime: RealtimeClient = cl.user_session.get("openai_realtime")
         
-        if not openai_realtime:
-            logger.error("OpenAI realtime client not found in session")
-            await cl.ErrorMessage(content="OpenAI realtime client not initialized").send()
-            return
+#         if not openai_realtime:
+#             logger.error("OpenAI realtime client not found in session")
+#             await cl.ErrorMessage(content="OpenAI realtime client not initialized").send()
+#             return
             
-        if not openai_realtime.is_connected():
-            logger.error("OpenAI realtime client not connected")
-            await cl.ErrorMessage(content="OpenAI realtime client not connected").send()
-            return
+#         if not openai_realtime.is_connected():
+#             logger.error("OpenAI realtime client not connected")
+#             await cl.ErrorMessage(content="OpenAI realtime client not connected").send()
+#             return
             
-        # Set flag to indicate this is text input, not audio
-        cl.user_session.set("is_text_input", True)
+#         # Set flag to indicate this is text input, not audio
+#         cl.user_session.set("is_text_input", True)
         
-        # Configure for text-only response (no audio output for text input)
-        await openai_realtime.update_session(modalities=["text"])
+#         # Configure for text-only response (no audio output for text input)
+#         await openai_realtime.update_session(modalities=["text"])
         
-        await openai_realtime.send_user_message_content([{ "type": 'input_text', "text": message.content}]) # 사용자의 메시지를 RealtimeClient로 전송
+#         await openai_realtime.send_user_message_content([{ "type": 'input_text', "text": message.content}]) # 사용자의 메시지를 RealtimeClient로 전송
         
-    except Exception as e:
-        logger.error(f"Error in on_message: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        await cl.ErrorMessage(content=f"Error processing message: {str(e)}").send()
+#     except Exception as e:
+#         logger.error(f"Error in on_message: {str(e)}")
+#         logger.error(f"Traceback: {traceback.format_exc()}")
+#         await cl.ErrorMessage(content=f"Error processing message: {str(e)}").send()
 
 @cl.on_audio_start # 음성 입력
 async def on_audio_start():
@@ -259,3 +254,84 @@ async def on_end():
     except Exception as e:
         logger.error(f"Error during disconnect: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
+
+
+
+##############################################################################################################################################
+def build_prefs_text(settings: dict) -> str:
+    if not settings:
+        return ""
+    parts = []
+    if settings.get("apply_food")      and settings.get("prefs_food"):      parts.append(f"선호 음식: {settings['prefs_food']}")
+    if settings.get("apply_allowance") and settings.get("prefs_allowance"): parts.append(f"용돈: {settings['prefs_allowance']}")
+    if settings.get("apply_location")  and settings.get("prefs_location"):  parts.append(f"거주: {settings['prefs_location']}")
+    if settings.get("apply_body")      and settings.get("prefs_body"):      parts.append(f"신체: {settings['prefs_body']}")
+    if settings.get("apply_mbti")      and settings.get("prefs_mbti"):      parts.append(f"MBTI: {settings['prefs_mbti']}")
+    return " | ".join(parts)
+
+# 사용자가 고르는 값 → 시스템 프롬프트에 섞을 “라벨”들
+def build_freeform_prefs_text(settings: dict) -> str:
+    raw = (settings or {}).get("freeform_prefs", "").strip()
+    # 1~2줄 요약용 (너무 길면 잘라 쓰는 등 가볍게 가공)
+    return raw[:500]
+
+@cl.on_chat_start
+async def start():
+    await cl.ChatSettings(
+        [
+            TextInput(id="prefs_food",      label="어떤 음식을 좋아해?",      placeholder="예) 비건, 견과류 알레르기, 매운맛 선호..."),
+            Switch(   id="apply_food",      label="이 선호를 자동 첨부",     initial=True),
+
+            TextInput(id="prefs_allowance", label="일주일에 용돈이 얼마야?",  placeholder="예) 안받아ㅠ, 일주일에 만원..."),
+            Switch(   id="apply_allowance", label="이 정보 자동 첨부",      initial=True),
+
+            TextInput(id="prefs_location",  label="어디 살아?",             placeholder="예) 서울 강남구, 마포구..."),
+            Switch(   id="apply_location",  label="이 정보 자동 첨부",      initial=True),
+
+            TextInput(id="prefs_body",      label="키하고 몸무게 알려줘",    placeholder="예) 170cm, 60kg"),
+            Switch(   id="apply_body",      label="이 정보 자동 첨부",      initial=True),
+
+            TextInput(id="prefs_mbti",      label="MBTI도 알려줄래?",       placeholder="예) INFP, ENTP"),
+            Switch(   id="apply_mbti",      label="이 정보 자동 첨부",      initial=True),
+        ]
+    ).send()
+
+    cl.user_session.set("ui_settings", {})  # 초기값
+
+    try:
+        await setup_openai_realtime()
+        await ensure_realtime_connected()
+        logger.info("Connected to OpenAI realtime")
+    except Exception as e:
+        logger.error(f"Error in start: {e}")
+        await cl.ErrorMessage(content=f"Failed to connect to OpenAI realtime: {e}").send()
+
+@cl.on_settings_update
+async def on_settings_update(settings: dict):
+    # 1) 세션에 저장
+    cl.user_session.set("ui_settings", settings)
+
+    # 2) 시스템 프롬프트 즉시 갱신
+    openai_realtime = cl.user_session.get("openai_realtime")
+    if openai_realtime and openai_realtime.is_connected():
+        base = "당신은 도움이 되는 AI 어시스턴트입니다. 한국어로 대화형 톤으로 답하세요. 불릿/번호 매기기는 피합니다."
+        prefs_line = build_prefs_text(settings)
+        merged = base + (f"\n\n[사용자 사전 설정]\n{prefs_line}" if prefs_line else "")
+        await openai_realtime.update_system_prompt(merged)
+        await cl.Message("설정이 적용되었습니다. 다음 답변부터 반영돼요.").send()
+
+@cl.on_message
+async def on_message(message: cl.Message):
+    openai_realtime = cl.user_session.get("openai_realtime")
+    if not openai_realtime or not openai_realtime.is_connected():
+        return await cl.ErrorMessage("Realtime client not connected").send()
+
+    await openai_realtime.update_session(modalities=["text"])
+
+    settings = cl.user_session.get("ui_settings") or {}
+    prefs_line = build_prefs_text(settings)
+    preamble = f"(참고: {prefs_line})\n" if prefs_line else ""
+
+    await openai_realtime.send_user_message_content([
+        {"type": "input_text", "text": preamble + message.content}
+    ])
