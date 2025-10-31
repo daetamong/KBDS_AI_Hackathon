@@ -190,14 +190,6 @@ class MCPService:
         
         # Load MCP server configuration
         config = {
-            "airbnb": {
-                "command": "npx.cmd",
-                "args": [
-                    "-y",
-                    "@openbnb/mcp-server-airbnb",
-                    "--ignore-robots-txt"
-                ]
-            },
             "naver-maps-mcp": {
                 "command": "npx.cmd",
                 "args": [
@@ -212,9 +204,26 @@ class MCPService:
                     "--profile",
                     "social-piranha-4RfCKK"
                 ]
+            },
+            "fdc-mcp": {
+                "command": "npx.cmd",
+                "args": ["-y", "food-data-central-mcp-server"],
+                "env": {"FDC_API_KEY": "CwkJTDMSLLomgslEVQN80VL3opCsaX6opn614GkY"}
+            },
+            "openfoodfacts-standard": {
+                "command": "node",
+                "args": ["KBDS_AI_Hackathon/mcp-server/dist/cli.js"],
+                "env": {"TRANSPORT": "stdio"}
+            },
+            "nutritionix-mcp": {
+                "command": "python",
+                "args": ["-m", "nutritionix_mcp_server"],
+                "env": {
+                "NIX_APP_ID": "42236539",
+                "NIX_APP_KEY": "4164887fe912013bf343e27b658e4d3c"
+                }
             }
         }
-        
         for server_name, server_config in config.items():
             await self.client.start_server(server_name, server_config)
         
