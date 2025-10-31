@@ -1,4 +1,11 @@
-# MCP 서버들을 별도 프로세스로 띄우고 관리하는 서비스
+'''
+코드 설명
+- 여러 MCP 서버를 개별 프로세스로 띄우고 관리하는 서비스
+- 각 서버가 노출하는 tool 목록을 수집/등록
+- tool을 JSON-RPC로 호출
+- 적절한 MCP 서버로 요청을 전달하고 응답을 받아옴
+'''
+import uuid
 import json
 import asyncio
 import logging
@@ -18,6 +25,12 @@ class MCPTool:
     parameters: Dict[str, Any]
 
 class MCPServerClient:
+    '''
+    하위 레벨
+    - 프로세스 생성
+    - 초기화 요청
+    - tools 조회/등록
+    '''
     def __init__(self):
         self.servers = {}
         self.tools = {}
@@ -119,15 +132,21 @@ class MCPServerClient:
         """Call a tool on the appropriate MCP server"""
         if tool_name not in self.tools:
             raise Exception(f"Tool {tool_name} not found")
-        
+
         tool_info = self.tools[tool_name]
         server_name = tool_info["server"]
-        
+
         if server_name not in self.processes:
             raise Exception(f"Server {server_name} not running")
-        
+
         process = self.processes[server_name]
-        
+
+        # 출처 추적용 trace id 생성
+        trace_id = str(uuid.uuid4())
+
+        # 요청 로그 기록
+        logger.info(f"[TRACE {trace_id}] Calling tool '{tool_name}' on server '{server_name}' with params: {parameters}")
+
         # Send tool call request
         request = {
             "jsonrpc": "2.0",
@@ -138,20 +157,30 @@ class MCPServerClient:
                 "arguments": parameters
             }
         }
-        
+
         try:
             await self._send_request(process, request)
             response = await self._read_response(process)
-            
+
+            # 응답 로그 기록
+            logger.info(f"[TRACE {trace_id}] Response from '{server_name}/{tool_name}': {json.dumps(response)[:300]}")
+
             if response and "result" in response:
-                return response["result"]
+                # provenance 필드를 추가해 출처 메타데이터 포함
+                result = response["result"]
+                result["_provenance"] = {
+                    "trace_id": trace_id,
+                    "server": server_name,
+                    "tool": tool_name
+                }
+                return result
             elif response and "error" in response:
                 raise Exception(f"Tool call error: {response['error']}")
             else:
                 raise Exception("No response from tool call")
-                
+
         except Exception as e:
-            logger.error(f"Failed to call tool {tool_name}: {e}")
+            logger.error(f"[TRACE {trace_id}] Failed to call tool {tool_name}: {e}")
             raise
     
     def get_tools_for_openai(self) -> List[Dict[str, Any]]:
@@ -179,6 +208,11 @@ class MCPServerClient:
         self.tools.clear()
 
 class MCPService:
+    '''
+    상위 레벨
+    - 초기화/종료
+    - 외부에 제공할 tool 호출 인터페이스
+    '''
     def __init__(self):
         self.client = MCPServerClient()
         self.initialized = False
@@ -234,7 +268,7 @@ class MCPService:
         """Get tool response from MCP server"""
         if not self.initialized:
             await self.initialize()
-        
+
         try:
             result = await self.client.call_tool(tool_name, parameters, call_id)
             return result

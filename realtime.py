@@ -505,29 +505,32 @@ class RealtimeClient(RealtimeEventHandler):
         try:
             json_arguments = json.loads(tool["arguments"]) if tool.get("arguments") else {}
             tool_name = tool["name"]
+
             if hasattr(self, "_ui_settings_injector") and callable(self._ui_settings_injector):
                 ui_settings = self._ui_settings_injector() or {}
-                # 툴에서 활용할 수 있게 별도 키로 전달
                 json_arguments.setdefault("_user_prefs", ui_settings)
-                # ui_settings = self._ui_settings_injector() or {}
-                # 툴에 유용한 키만 골라 합치기(충돌 방지)
-            # print(tool["arguments"])
-            # json_arguments = json.loads(tool["arguments"])
-            # tool_name = tool["name"]
-            
-            # Use MCP service to handle the tool call
+
             result = await self.mcp_service.get_tool_response(
                 tool_name=tool_name, parameters=json_arguments, call_id=tool["call_id"]
             )
-            
+
+            # ✅ 여기 추가: 출처 이벤트 발행
+            prov = result.get("_provenance")
+            if prov:
+                # 여러 툴이 한 응답에 섞일 수 있으니 call_id도 함께 보냄
+                self.dispatch("mcp.tool.completed", {
+                    "provenance": prov,
+                    "tool": tool_name,
+                    "call_id": tool["call_id"]
+                })
+
             logger.info(f"MCP function call completed: {tool_name} with arguments {json_arguments}")
-            
-            # Send the result back to the conversation
+
             await self.realtime.send("conversation.item.create", {
                 "item": {
                     "type": "function_call_output",
                     "call_id": tool["call_id"],
-                    "output": json.dumps(result),
+                    "output": json.dumps(result),  # provenance가 그대로 포함됨
                 }
             })
         except Exception as e:

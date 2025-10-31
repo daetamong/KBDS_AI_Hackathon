@@ -32,17 +32,31 @@ BASE_SYSTEM_PROMPT = (
     "당신은 맞벌이 하시는 부모님을 둔 고등학교 친구들의 저녁을 책임지는 음식 전문가입니다. "
     "한국어로 대화형 톤으로 답하세요. 건강을 생각한 답변을 하세요. "
     "오디오를 사용해서 말할 수 있으므로 대화형에 맞게 응답하세요. 불릿/번호 매기기는 피합니다."
+    "위치 정보에 대해서 물어볼 때는 naver-maps-mcp 툴을 사용하여 장소를 추천하세요."
+    "그리고 응답을 할 때는 반드시 출처 정보를 포함하세요."
 )
-
-# STATE_FILES = [
-#     os.path.join(DATA_DIR, "user_state_b7e541ad-b334-419d-9f2b-66b8c05ebcb1.json"),
-#     os.path.join(DATA_DIR, "user_state_d06b5981-2262-4f39-9157-1308e57740a7.json"),
-# ]
 
 FILENAME_PREFIX = "user_state_"
 FILENAME_REGEX = re.compile(r"^user_state_([a-f0-9\-]{6,})\.json$")
 
 user_state_info_id = "user_state_d06b5981-2262-4f39-9157-1308e57740a7"
+
+def _render_provenance_footer(prov_or_list) -> str:
+    """단일 혹은 복수 provenance를 Markdown 풋터로 변환."""
+    if not prov_or_list:
+        return ""
+    if isinstance(prov_or_list, dict):
+        provs = [prov_or_list]
+    else:
+        provs = [p for p in (prov_or_list or []) if p]
+
+    lines = ["\n\n---", "**출처**"]
+    for p in provs:
+        server = p.get("server", "?")
+        tool = p.get("tool", "?")
+        trace_id = p.get("trace_id", "?")
+        lines.append(f"- `{server}` → `{tool}`  (trace: `{trace_id}`)")
+    return "\n".join(lines)
 
 def list_state_files() -> list[str]:
     """data/ 내 user_state_*.json 전부 나열"""
@@ -315,12 +329,23 @@ async def _update_system_prompt_from_context() -> None:
 async def setup_openai_realtime():
     """Realtime 클라이언트 초기화 및 이벤트 핸들러 등록."""
     openai_realtime = RealtimeClient(system_prompt=BASE_SYSTEM_PROMPT, max_tokens=4096)
+    
     cl.user_session.set("openai_realtime", openai_realtime)
     cl.user_session.set("track_id", str(uuid4()))
     cl.user_session.set("is_text_input", True)  # 텍스트/오디오 입력 구분 플래그
     cl.user_session.set("current_transcript_msg", None)
     cl.user_session.set("current_text_msg", None)
 
+    async def handle_mcp_tool_completed(event):
+        prov = (event or {}).get("provenance")
+        if not prov:
+            return
+        lst = cl.user_session.get("last_provenances") or []
+        lst.append(prov)
+        cl.user_session.set("last_provenances", lst)
+        
+        openai_realtime.on("mcp.tool.completed", handle_mcp_tool_completed)
+        
     # --- Event handlers ---
     async def handle_conversation_updated(event):
         """오디오/텍스트 스트리밍 업데이트."""
@@ -388,6 +413,18 @@ async def setup_openai_realtime():
                 elif final_text:
                     await cl.Message(content=final_text, author="assistant").send()
 
+                provs = cl.user_session.get("last_provenances")
+                if provs:
+                    footer = _render_provenance_footer(provs)
+                    if transcript_msg:
+                        transcript_msg.content = (transcript_msg.content or "") + footer
+                        transcript_msg.metadata = {"provenance": provs}
+                        await transcript_msg.update()
+                    elif final_text:
+                        await cl.Message(content=final_text + footer, author="assistant", metadata={"provenance": provs}).send()
+                    # 한 턴 끝났으니 초기화
+                    cl.user_session.set("last_provenances", None)
+                
             elif it.get("type") == "message" and ctype == "text":
                 logger.info("Text response completed")
                 text_msg = cl.user_session.get("current_text_msg")
@@ -398,6 +435,16 @@ async def setup_openai_realtime():
                     await text_msg.update()
                 elif final_text:
                     await cl.Message(content=final_text, author="assistant").send()
+                provs = cl.user_session.get("last_provenances")
+                if provs:
+                    footer = _render_provenance_footer(provs)
+                    if text_msg:
+                        text_msg.content = (text_msg.content or "") + footer
+                        text_msg.metadata = {"provenance": provs}
+                        await text_msg.update()
+                    elif final_text:
+                        await cl.Message(content=final_text + footer, author="assistant", metadata={"provenance": provs}).send()
+                    cl.user_session.set("last_provenances", None)
 
             elif it.get("type") == "function_call":
                 logger.info("Function call completed")
