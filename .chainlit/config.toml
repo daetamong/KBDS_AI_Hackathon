@@ -63,7 +63,7 @@ edit_message = true
 
 [UI]
 # Name of the assistant.
-name = "나만의 AI 에이전트"
+name = "🍱 내맘내밥 – 식사 기록 도우미"
 
 # default_theme = "dark"
 

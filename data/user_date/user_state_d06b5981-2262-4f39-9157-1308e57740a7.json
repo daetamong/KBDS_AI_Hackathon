@@ -1,0 +1,61 @@
+{
+  "ui_settings": {
+    "prefs_food": "고기",
+    "apply_food": true,
+    "prefs_allowance": null,
+    "apply_allowance": true,
+    "prefs_location": null,
+    "apply_location": true,
+    "prefs_body": null,
+    "apply_body": true,
+    "prefs_mbti": null,
+    "apply_mbti": true,
+    "prefs_you": null,
+    "apply_you": true
+  },
+  "weekly_meals": {
+    "mon": {
+      "what": "비빔밥",
+      "where": "성수",
+      "time": "16:00",
+      "note": "12000"
+    },
+    "tue": {
+      "what": "불고기",
+      "where": "강남",
+      "time": "18:00",
+      "note": "10000"
+    },
+    "wed": {
+      "what": "샐러드",
+      "where": "마포",
+      "time": "12:00",
+      "note": "9000"
+    },
+    "thu": {
+      "what": "",
+      "where": "",
+      "time": "",
+      "note": ""
+    },
+    "fri": {
+      "what": "",
+      "where": "",
+      "time": "",
+      "note": ""
+    },
+    "sat": {
+      "what": "",
+      "where": "",
+      "time": "",
+      "note": ""
+    },
+    "sun": {
+      "what": "",
+      "where": "",
+      "time": "",
+      "note": ""
+    }
+  },
+  "updated_at": 1761886907
+}

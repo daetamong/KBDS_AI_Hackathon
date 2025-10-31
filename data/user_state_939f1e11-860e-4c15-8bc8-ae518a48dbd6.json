@@ -1,0 +1,18 @@
+{
+  "ui_settings": {
+    "prefs_food": "완전 비건!",
+    "apply_food": true,
+    "prefs_allowance": null,
+    "apply_allowance": true,
+    "prefs_location": null,
+    "apply_location": true,
+    "prefs_body": null,
+    "apply_body": true,
+    "prefs_mbti": null,
+    "apply_mbti": true,
+    "prefs_you": null,
+    "apply_you": true
+  },
+  "weekly_meals": {},
+  "updated_at": 1761887739
+}

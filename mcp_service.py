@@ -198,10 +198,19 @@ class MCPService:
                     "--ignore-robots-txt"
                 ]
             },
-            "naver": {
+            "naver-maps-mcp": {
                 "command": "npx.cmd",
                 "args": [
-                    "-y", "@kbds/mcp-server-naver"
+                    "/c",
+                    "npx",
+                    "-y",
+                    "@smithery/cli@latest",
+                    "run",
+                    "@Chaeyun06/naver-maps-mcp",
+                    "--key",
+                    "e9390fb3-2166-4957-8a22-23163539572f",
+                    "--profile",
+                    "social-piranha-4RfCKK"
                 ]
             }
         }

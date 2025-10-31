@@ -91,73 +91,7 @@ class RealtimeEventHandler:
         return await future
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-# class RealtimeAPI:
-#     """OpenAI Realtime WebSocket API 클라이언트 (공식 openai.com)"""
-#     def __init__(self):
-#         self.api_key = os.environ["OPENAI_API_KEY"]
-#         self.url = "wss://api.openai.com/v1/realtime"
-#         self.model = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview")
-#         self.ws = None
-#         self.event_handlers = defaultdict(list)
 
-#     def is_connected(self):
-#         return self.ws is not None
-
-#     async def connect(self):
-#         """OpenAI Realtime WebSocket 연결"""
-#         try:
-#             if self.is_connected():
-#                 logger.warning("Already connected")
-#                 raise Exception("Already connected")
-            
-#             headers = {
-#                 "Authorization": f"Bearer {self.api_key}",
-#                 "OpenAI-Beta": "realtime=v1"  # ✅ 중요! Realtime API 전용 헤더
-#             }
-
-#             connect_url = f"{self.url}?model={self.model}"
-#             self.ws = await websockets.connect(connect_url, additional_headers=headers)
-#             logger.info(f"✅ Connected to OpenAI Realtime API ({self.model})")
-
-#             asyncio.create_task(self._receive_messages())
-#         except Exception as e:
-#             logger.error(f"❌ Connection failed: {e}")
-#             logger.error(traceback.format_exc())
-#             raise e
-
-#     async def _receive_messages(self):
-#         """서버 메시지 수신 루프"""
-#         try:
-#             async for msg in self.ws:
-#                 event = json.loads(msg)
-#                 self._dispatch(f"server.{event.get('type','unknown')}", event)
-#         except Exception as e:
-#             logger.error(f"Error in receive loop: {e}")
-#             logger.error(traceback.format_exc())
-
-#     async def send(self, event_name, data=None):
-#         """이벤트 전송"""
-#         if not self.is_connected():
-#             raise Exception("RealtimeAPI not connected")
-#         event = {"type": event_name, **(data or {})}
-#         await self.ws.send(json.dumps(event))
-#         logger.debug(f"➡️ Sent: {event_name}")
-
-#     async def disconnect(self):
-#         if self.ws:
-#             await self.ws.close()
-#             self.ws = None
-#             logger.info("🔌 Disconnected from OpenAI Realtime")
-
-#     def on(self, event_name, handler):
-#         self.event_handlers[event_name].append(handler)
-
-#     def _dispatch(self, event_name, event):
-#         for h in self.event_handlers[event_name]:
-#             if asyncio.iscoroutinefunction(h):
-#                 asyncio.create_task(h(event))
-#             else:
-#                 h(event)
 ################################################## 수정본 ##################################################################################################
 import os, asyncio, json, traceback
 import websockets
@@ -566,44 +500,6 @@ class RealtimeClient(RealtimeEventHandler):
             self.dispatch("conversation.item.completed", {"item": item})
         if item and item.get("formatted", {}).get("tool"):
             await self._call_tool(item["formatted"]["tool"])
-
-    # async def _call_tool(self, tool):
-    #     try:
-    #         json_arguments = json.loads(tool["arguments"]) if tool.get("arguments") else {}
-    #         tool_name = tool["name"]
-    #         if hasattr(self, "_ui_settings_injector") and callable(self._ui_settings_injector):
-    #             ui_settings = self._ui_settings_injector() if hasattr(self, "_ui_settings_injector") else {}
-    #             # ui_settings = self._ui_settings_injector() or {}
-    #             # 툴에 유용한 키만 골라 합치기(충돌 방지)
-    #             # json_arguments.setdefault("_user_prefs", ui_settings)
-    #             json_arguments.setdefault("_user_prefs", ui_settings.get("freeform_prefs", ""))
-    #         # print(tool["arguments"])
-    #         # json_arguments = json.loads(tool["arguments"])
-    #         # tool_name = tool["name"]
-            
-    #         # Use MCP service to handle the tool call
-    #         result = await self.mcp_service.get_tool_response(tool_name=tool_name, parameters=json_arguments, call_id=tool["call_id"])
-            
-    #         logger.info(f"MCP function call completed: {tool_name} with arguments {json_arguments}")
-            
-    #         # Send the result back to the conversation
-    #         await self.realtime.send("conversation.item.create", {
-    #             "item": {
-    #                 "type": "function_call_output",
-    #                 "call_id": tool["call_id"],
-    #                 "output": json.dumps(result),
-    #             }
-    #         })
-    #     except Exception as e:
-    #         logger.error(traceback.format_exc())
-    #         await self.realtime.send("conversation.item.create", {
-    #             "item": {
-    #                 "type": "function_call_output",
-    #                 "call_id": tool["call_id"],
-    #                 "output": json.dumps({"error": str(e)}),
-    #             }
-    #         })
-    #     await self.create_response()
 
     async def _call_tool(self, tool):
         try:
