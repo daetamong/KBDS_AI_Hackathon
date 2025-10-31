@@ -9,6 +9,52 @@ from realtime import RealtimeClient
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+DAYS = [
+    ("mon", "월요일"), ("tue", "화요일"), ("wed", "수요일"),
+    ("thu", "목요일"), ("fri", "금요일"), ("sat", "토요일"), ("sun", "일요일")
+]
+
+def make_week_table_props(weekly_meals: dict) -> dict:
+    rows = []
+    for key, label in DAYS:
+        d = (weekly_meals or {}).get(key, {})
+        rows.append({
+            "dayKey": key, "dayLabel": label,
+            "what": d.get("what", ""), "where": d.get("where", ""),
+            "time": d.get("time", ""), "note": d.get("note", "")
+        })
+    return {"rows": rows, "timeout": 600}
+
+def rows_to_weekly_meals(rows: list[dict]) -> dict:
+    out = {}
+    for r in rows:
+        out[r["dayKey"]] = {
+            "what":  (r.get("what")  or "").strip(),
+            "where": (r.get("where") or "").strip(),
+            "time":  (r.get("time")  or "").strip(),
+            "note":  (r.get("note")  or "").strip(),
+        }
+    return out
+
+def format_meal_table(meals: dict) -> str:
+    # meals = {"mon": {"what":"파스타","where":"성수","time":"12:30","note":"맵지X"}, ...}
+    header = "| 요일 | 먹은 것 | 장소 | 시간 | 메모 |\n|---|---|---|---|---|\n"
+    rows = []
+    for key, label in DAYS:
+        d = meals.get(key, {})
+        rows.append(f"| {label} | {d.get('what','')} | {d.get('where','')} | {d.get('time','')} | {d.get('note','')} |")
+    return header + "\n".join(rows)
+
+
+def summarize_meals_for_prompt(meals: dict) -> str:
+    # 프롬프트에 넣기 좋은 1~2줄 요약 (최근일/핵심만)
+    picks = []
+    for key, label in DAYS:
+        d = meals.get(key, {})
+        if any(d.get(k) for k in ("what","where","time")):
+            picks.append(f"{label}:{d.get('what','?')}@{d.get('where','?')}")
+    return " / ".join(picks)[:500]
+
 async def setup_openai_realtime():
     system_prompt = """
         당신은 도움이 되는 AI 어시스턴트입니다. 
@@ -22,6 +68,13 @@ async def setup_openai_realtime():
     # Initialize the flag to track input type (text vs audio)
     cl.user_session.set("is_text_input", True) # 입력값이 텍스트인지 오디오인지 추적하는 플래그 초기화
 
+    def get_user_context():
+        return {
+            "ui_settings": cl.user_session.get("ui_settings") or {},
+            "weekly_meals": cl.user_session.get("weekly_meals") or {},
+        }
+    openai_realtime._ui_settings_injector = get_user_context
+    
     def get_ui_settings():  # ← 동기 함수
         return cl.user_session.get("ui_settings") or {}
     openai_realtime._ui_settings_injector = get_ui_settings
@@ -263,6 +316,9 @@ async def start():
 
             TextInput(id="prefs_mbti",      label="MBTI도 알려줄래?",       placeholder="예) INFP, ENTP"),
             Switch(   id="apply_mbti",      label="이 정보 자동 첨부",      initial=True),
+
+            TextInput(id="prefs_you",      label="너에 대해 알려줄래?",       placeholder="예) 난 헬충이야"),
+            Switch(   id="apply_you",      label="이 정보 자동 첨부",      initial=True),
         ]
     ).send()
 
@@ -275,7 +331,8 @@ async def start():
     except Exception as e:
         logger.error(f"Error in start: {e}")
         await cl.ErrorMessage(content=f"Failed to connect to OpenAI realtime: {e}").send()
-
+    await cl.Message("안녕하세요! 이번 주 식사 기록을 입력하려면 `/week` 를 입력하세요. 현재 저장된 기록은 `/meals` 로 확인할 수 있어요.").send()
+    
 @cl.on_settings_update
 async def on_settings_update(settings: dict):
     # 1) 세션에 저장
@@ -292,6 +349,56 @@ async def on_settings_update(settings: dict):
 
 @cl.on_message
 async def on_message(message: cl.Message):
+    content = (message.content or "").strip()
+
+    # ① /week : 주간 식사 입력 폼 띄우기
+    if content == "/week":
+        current = cl.user_session.get("weekly_meals") or {}
+
+        element = cl.CustomElement(
+            name="WeeklyMeals",          # 프론트 컴포넌트 파일명과 동일 (WeeklyMeals.tsx/tsx)
+            display="inline",
+            props=make_week_table_props(current),
+        )
+
+        res = await cl.AskElementMessage(
+            content="이번 주 식사를 표에 입력하고 제출하세요.",
+            element=element,
+            timeout=600,
+        ).send()
+
+        if not res or not res.get("submitted"):
+            return  # 사용자가 취소/시간초과
+
+        # 제출된 rows → 백엔드 포맷으로 변환하여 저장
+        weekly_meals = rows_to_weekly_meals(res["rows"])
+        cl.user_session.set("weekly_meals", weekly_meals)
+
+        # 표 미리보기
+        await cl.Message(content="### 이번 주 식사 기록이 저장됐어요!\n" + format_meal_table(weekly_meals)).send()
+
+        # 시스템 프롬프트 갱신 (기존 코드 재사용)
+        openai_realtime = cl.user_session.get("openai_realtime")
+        if openai_realtime and openai_realtime.is_connected():
+            base = "당신은 도움이 되는 AI 어시스턴트입니다. 한국어로 대화형 톤으로 답하세요. 불릿/번호 매기기는 피합니다."
+            summary = summarize_meals_for_prompt(weekly_meals)
+            merged = base + (f"\n\n[사용자 주간 식사 요약] {summary}" if summary else "")
+            await openai_realtime.update_system_prompt(merged)
+            await cl.Message("이제부터 추천/답변에 방금 입력한 식사 기록을 참고할게요.").send()
+        return
+
+    # ② /meals : 현재 저장본 보기
+    if content == "/meals":
+        weekly = cl.user_session.get("weekly_meals") or {}
+        md = format_meal_table(weekly) if weekly else "아직 기록이 없어요. `/week`로 입력해 주세요."
+        return await cl.Message(content="### 현재 저장된 식사 기록\n" + md).send()
+
+    # ③ /meals reset : 초기화
+    if content == "/meals reset":
+        cl.user_session.set("weekly_meals", {})
+        return await cl.Message("주간 식사 기록을 초기화했어요. `/week`로 다시 입력해 주세요.").send()
+
+    # ④ 일반 메시지: 설정 + 식사요약을 프리앰블로 붙여 모델에 전달
     openai_realtime = cl.user_session.get("openai_realtime")
     if not openai_realtime or not openai_realtime.is_connected():
         return await cl.ErrorMessage("Realtime client not connected").send()
@@ -300,7 +407,14 @@ async def on_message(message: cl.Message):
 
     settings = cl.user_session.get("ui_settings") or {}
     prefs_line = build_prefs_text(settings)
-    preamble = f"(참고: {prefs_line})\n" if prefs_line else ""
+
+    weekly_meals = cl.user_session.get("weekly_meals") or {}
+    meals_line = summarize_meals_for_prompt(weekly_meals)
+
+    bits = []
+    if prefs_line: bits.append(prefs_line)
+    if meals_line: bits.append(f"최근 일주일 식사: {meals_line}")
+    preamble = f"(참고: {' | '.join(bits)})\n" if bits else ""
 
     await openai_realtime.send_user_message_content([
         {"type": "input_text", "text": preamble + message.content}
