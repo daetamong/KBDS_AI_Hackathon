@@ -9,3 +9,7 @@
 
 2. 파이썬 버전
 - pyenv install 3.12.8
+
+3. 서비스 배포
+   chainlit run chat.py
+   ngrok 실행 -> ngrok http 8000
